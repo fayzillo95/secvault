@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import base64
-import getpass
 import json
 import os
 import subprocess
@@ -81,14 +80,14 @@ def mask_email(email: str) -> str:
 def run_init():
     print("=== Vault birinchi marta sozlanmoqda ===")
     while True:
-        seed = getpass.getpass("Yangi Seed (asosiy parol) o'ylab toping: ")
-        seed_confirm = getpass.getpass("Seedni qayta kiriting: ")
+        seed = input("Yangi Seed (asosiy parol) o'ylab toping: ")
+        seed_confirm = input("Seedni qayta kiriting: ")
         if seed == seed_confirm and seed:
             break
         print("Seedlar mos kelmadi yoki bo'sh, qaytadan urinib ko'ring.\n")
 
     question = input("Tiklash savolini kiriting (masalan: Birinchi telefon raqamingiz?): ")
-    answer = getpass.getpass("Tiklash javobini kiriting: ")
+    answer = input("Tiklash javobini kiriting: ")
 
     dek = Fernet.generate_key()
     salt_seed = os.urandom(16)
@@ -111,10 +110,10 @@ def run_init():
 
 def unlock() -> bytes:
     meta = load_meta()
-    choice = getpass.getpass("Seedni kiriting (tiklash uchun 'r' yozing): ")
+    choice = input("Seedni kiriting (tiklash uchun 'r' yozing): ")
     if choice == "r":
         print(f"Tiklash savoli: {meta['recovery_question']}")
-        secret = getpass.getpass("Javobni kiriting: ")
+        secret = input("Javobni kiriting: ")
         salt = base64.b64decode(meta["salt_recovery"])
         wrapped = meta["wrapped_key_recovery"]
         label = "Javob"
@@ -137,7 +136,7 @@ def action_add(dek, accounts):
     if email in accounts:
         print("Bu email allaqachon mavjud, 'Tahrirlash' bo'limidan foydalaning.")
         return
-    password = getpass.getpass("Parol: ")
+    password = input("Parol: ")
     accounts[email] = password
     save_accounts(dek, accounts)
     print(f"'{email}' qo'shildi.")
@@ -149,7 +148,7 @@ def action_edit(dek, accounts):
     if email not in accounts:
         print("Bunday email topilmadi.")
         return
-    new_password = getpass.getpass("Yangi parol: ")
+    new_password = input("Yangi parol: ")
     accounts[email] = new_password
     save_accounts(dek, accounts)
     print(f"'{email}' uchun parol yangilandi.")
