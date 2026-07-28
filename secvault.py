@@ -47,23 +47,25 @@ def save_accounts(dek: bytes, accounts: dict) -> None:
         f.write(token)
 
 
-def git_sync(message: str) -> None:
+def push_to_github() -> None:
     if not os.path.isdir(os.path.join(REPO_DIR, ".git")):
-        print("Ogohlantirish: bu papka git repo emas, push o'tkazib yuborildi.")
+        print("Bu papka git repo emas, push qilib bo'lmaydi.\n")
         return
     subprocess.run(["git", "add", "accounts.enc", "vault.meta.json"], cwd=REPO_DIR)
+    message = f"update: {datetime.now():%Y-%m-%d %H:%M}"
     commit = subprocess.run(["git", "commit", "-m", message], cwd=REPO_DIR, capture_output=True, text=True)
     if commit.returncode != 0:
         if "nothing to commit" in commit.stdout.lower():
+            print("Push qilinadigan yangi o'zgarish yo'q.\n")
             return
-        print(f"Ogohlantirish: commit qilinmadi -> {commit.stdout.strip()}")
+        print(f"Xatolik: commit qilinmadi -> {commit.stdout.strip()}\n")
         return
     push = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, text=True)
     if push.returncode != 0:
-        print(f"Ogohlantirish: push muvaffaqiyatsiz -> {push.stderr.strip()}")
-        print("Keyinroq qo'lda 'git push' qiling.")
+        print(f"Xatolik: push muvaffaqiyatsiz -> {push.stderr.strip()}")
+        print("O'zgarish lokal commit qilindi, keyinroq qaytadan push qilib ko'ring.\n")
     else:
-        print("GitHub'ga muvaffaqiyatli push qilindi.")
+        print("GitHub'ga muvaffaqiyatli push qilindi.\n")
 
 
 def mask_email(email: str) -> str:
@@ -103,8 +105,8 @@ def run_init():
     save_meta(meta)
     save_accounts(dek, {})
     print("\nVault muvaffaqiyatli yaratildi.")
-    print("MUHIM: Seed va tiklash javobini xavfsiz joyda saqlang, ular hech qayerda saqlanmaydi.\n")
-    git_sync("init: vault yaratildi")
+    print("MUHIM: Seed va tiklash javobini xavfsiz joyda saqlang, ular hech qayerda saqlanmaydi.")
+    print("Eslatma: GitHub'ga yuborish uchun menyudan 'Push' bo'limini tanlang.\n")
     return dek
 
 
@@ -139,8 +141,7 @@ def action_add(dek, accounts):
     password = input("Parol: ")
     accounts[email] = password
     save_accounts(dek, accounts)
-    print(f"'{email}' qo'shildi.")
-    git_sync(f"add: {mask_email(email)} - {datetime.now():%Y-%m-%d %H:%M}")
+    print(f"'{email}' qo'shildi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
 def action_edit(dek, accounts):
@@ -151,8 +152,7 @@ def action_edit(dek, accounts):
     new_password = input("Yangi parol: ")
     accounts[email] = new_password
     save_accounts(dek, accounts)
-    print(f"'{email}' uchun parol yangilandi.")
-    git_sync(f"edit: {mask_email(email)} - {datetime.now():%Y-%m-%d %H:%M}")
+    print(f"'{email}' uchun parol yangilandi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
 def action_delete(dek, accounts):
@@ -166,8 +166,7 @@ def action_delete(dek, accounts):
         return
     del accounts[email]
     save_accounts(dek, accounts)
-    print(f"'{email}' o'chirildi.")
-    git_sync(f"delete: {mask_email(email)} - {datetime.now():%Y-%m-%d %H:%M}")
+    print(f"'{email}' o'chirildi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
 def show_list(accounts, mode):
@@ -203,7 +202,8 @@ MENU = """
 4. Yangi akkaunt qo'shish
 5. Akkauntni tahrirlash
 6. Akkauntni o'chirish
-7. GitHub'dan yangilash (sync)
+7. GitHub'dan yangilash (pull)
+8. GitHub'ga yuborish (push)
 0. Chiqish
 ====================
 """
@@ -236,6 +236,8 @@ def main():
         elif choice == "7":
             sync_pull()
             accounts = load_accounts(dek)
+        elif choice == "8":
+            push_to_github()
         elif choice == "0":
             print("Xayr!")
             break
