@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 META_PATH = os.path.join(REPO_DIR, "vault.meta.json")
 DATA_PATH = os.path.join(REPO_DIR, "accounts.enc")
+RESULT_PATH = os.path.join(REPO_DIR, "result.json")
 PBKDF2_ITERATIONS = 390_000
 
 
@@ -186,6 +187,16 @@ def show_list(accounts, mode):
     print()
 
 
+def export_full_list(accounts):
+    if not accounts:
+        print("Vault bo'sh, eksport qilinadigan narsa yo'q.\n")
+        return
+    with open(RESULT_PATH, "w") as f:
+        json.dump(accounts, f, indent=2, ensure_ascii=False)
+    print(f"To'liq list (ochiq parollar bilan) '{RESULT_PATH}' fayliga yozildi.")
+    print("OGOHLANTIRISH: bu fayl SHIFRLANMAGAN, git'ga tushmasligi uchun .gitignore'ga qo'shilgan.\n")
+
+
 def sync_pull():
     if not os.path.isdir(os.path.join(REPO_DIR, ".git")):
         print("Bu papka git repo emas.\n")
@@ -204,6 +215,7 @@ MENU = """
 6. Akkauntni o'chirish
 7. GitHub'dan yangilash (pull)
 8. GitHub'ga yuborish (push)
+9. To'liq listni result.jsonga yozish
 0. Chiqish
 ====================
 """
@@ -238,6 +250,8 @@ def main():
             accounts = load_accounts(dek)
         elif choice == "8":
             push_to_github()
+        elif choice == "9":
+            export_full_list(accounts)
         elif choice == "0":
             print("Xayr!")
             break
