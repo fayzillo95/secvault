@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from datetime import datetime
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -15,6 +16,7 @@ META_PATH = os.path.join(REPO_DIR, "vault.meta.json")
 DATA_PATH = os.path.join(REPO_DIR, "accounts.enc")
 RESULT_PATH = os.path.join(REPO_DIR, "result.json")
 PBKDF2_ITERATIONS = 390_000
+RESULT_TTL_SECONDS = 120
 
 
 def derive_key(secret: str, salt: bytes) -> bytes:
@@ -190,11 +192,22 @@ def show_list(accounts, mode):
 def export_full_list(accounts):
     if not accounts:
         print("Vault bo'sh, eksport qilinadigan narsa yo'q.\n")
-        return
+        return None
     with open(RESULT_PATH, "w") as f:
         json.dump(accounts, f, indent=2, ensure_ascii=False)
     print(f"To'liq list (ochiq parollar bilan) '{RESULT_PATH}' fayliga yozildi.")
-    print("OGOHLANTIRISH: bu fayl SHIFRLANMAGAN, git'ga tushmasligi uchun .gitignore'ga qo'shilgan.\n")
+    print(f"OGOHLANTIRISH: bu fayl SHIFRLANMAGAN. {RESULT_TTL_SECONDS} soniyadan so'ng yoki "
+          "dasturdan chiqishda avtomatik o'chiriladi.\n")
+
+    def _remove():
+        if os.path.exists(RESULT_PATH):
+            os.remove(RESULT_PATH)
+            print(f"\n[Xavfsizlik] {RESULT_TTL_SECONDS} soniya o'tdi, result.json avtomatik o'chirildi.")
+
+    timer = threading.Timer(RESULT_TTL_SECONDS, _remove)
+    timer.daemon = True
+    timer.start()
+    return timer
 
 
 def sync_pull():
@@ -228,6 +241,7 @@ def main():
         dek = unlock()
 
     accounts = load_accounts(dek)
+    cleanup_timer = None
 
     while True:
         print(MENU)
@@ -251,8 +265,15 @@ def main():
         elif choice == "8":
             push_to_github()
         elif choice == "9":
-            export_full_list(accounts)
+            if cleanup_timer is not None:
+                cleanup_timer.cancel()
+            cleanup_timer = export_full_list(accounts)
         elif choice == "0":
+            if cleanup_timer is not None:
+                cleanup_timer.cancel()
+            if os.path.exists(RESULT_PATH):
+                os.remove(RESULT_PATH)
+                print("result.json o'chirildi.")
             print("Xayr!")
             break
         else:
