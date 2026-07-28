@@ -36,6 +36,7 @@ Keyingi safar ishga tushirilganda Seed (yoki `r` yozib tiklash javobi) so'raladi
 6. Akkauntni o'chirish
 7. GitHub'dan yangilash (pull)
 8. GitHub'ga yuborish (push)
+9. To'liq listni result.jsonga yozish
 0. Chiqish
 ```
 
@@ -43,6 +44,17 @@ Keyingi safar ishga tushirilganda Seed (yoki `r` yozib tiklash javobi) so'raladi
 yuborish uchun har doim **8-band**ni qo'lda tanlash kerak — bu ataylab shunday
 qilingan, chunki avtomatik push muvaffaqiyatsiz bo'lsa, tizim chalkashib
 ketishi mumkin edi.
+
+**9-band (`result.json` eksport):** to'liq listni (ochiq parollar bilan)
+`result.json` fayliga yozadi — masalan boshqa dasturga import qilish yoki
+tezkor ko'rish uchun. Bu fayl **shifrlanmagan**, shuning uchun:
+- `.gitignore`da — hech qachon GitHub'ga tushmaydi.
+- Yozilgandan **2 daqiqa** o'tgach avtomatik o'chiriladi.
+- Dasturdan **"0. Chiqish"** yoki `Ctrl+C` bilan chiqilganda ham darhol o'chiriladi.
+
+**`Ctrl+C`:** dastur istalgan bosqichda (kirish, menyu, `git pull/push` kutish)
+to'xtatilsa, xunuk traceback o'rniga toza `"Bekor qilindi. Xayr!"` xabari
+chiqadi va `result.json` bo'lsa tozalanadi.
 
 ## Xavfsizlik arxitekturasi
 
@@ -57,6 +69,18 @@ ketishi mumkin edi.
 - GitHub repo **albatta private** bo'lishi kerak. Seed va tiklash javobi hech
   qachon fayllarga yozilmaydi — faqat ular orqali hosil qilingan kalitning
   shifrlangan (wrap qilingan) nusxasi saqlanadi.
+
+## Uzilib qolishdan himoya
+
+- **Atomic yozish:** `accounts.enc`, `vault.meta.json`, `result.json` har doim
+  avval `.tmp` faylga yoziladi, so'ng bir zumda asl faylga almashtiriladi
+  (`os.replace`). Agar quvvat o'chish yoki jarayon o'ldirilishi aynan yozish
+  paytida sodir bo'lsa, eski fayl buzilmasdan saqlanib qoladi.
+- **`current_step_status.json`** (lokal, `.gitignore`da): har bir
+  `init/add/edit/delete` boshlanishidan oldin yoziladi, muvaffaqiyatli
+  tugagach o'chiriladi. Agar dastur o'rtada to'xtab qolsa, keyingi ishga
+  tushirilganda "oxirgi safar X amali tugallanmasdan to'xtagan" deb
+  ogohlantiradi.
 
 ## Kelajakdagi reja
 
