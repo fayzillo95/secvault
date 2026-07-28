@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 result.json
+current_step_status.json
+*.tmp

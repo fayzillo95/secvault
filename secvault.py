@@ -15,6 +15,7 @@ REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 META_PATH = os.path.join(REPO_DIR, "vault.meta.json")
 DATA_PATH = os.path.join(REPO_DIR, "accounts.enc")
 RESULT_PATH = os.path.join(REPO_DIR, "result.json")
+STATUS_PATH = os.path.join(REPO_DIR, "current_step_status.json")
 PBKDF2_ITERATIONS = 390_000
 RESULT_TTL_SECONDS = 120
 
@@ -24,14 +25,47 @@ def derive_key(secret: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(secret.encode()))
 
 
+def atomic_write(path: str, data: bytes) -> None:
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, path)
+
+
+def set_status(step: str) -> None:
+    atomic_write(STATUS_PATH, json.dumps({
+        "step": step,
+        "status": "in_progress",
+        "timestamp": datetime.now().isoformat(),
+    }).encode())
+
+
+def clear_status() -> None:
+    if os.path.exists(STATUS_PATH):
+        os.remove(STATUS_PATH)
+
+
+def check_previous_status() -> None:
+    if not os.path.exists(STATUS_PATH):
+        return
+    with open(STATUS_PATH, "r") as f:
+        data = json.load(f)
+    print(f"OGOHLANTIRISH: oxirgi safar '{data['step']}' amali ({data['timestamp']}) tugallanmasdan dastur "
+          "kutilmaganda to'xtagan.")
+    print("Ma'lumot fayllari xavfsiz (atomic yozish tufayli buzilmagan), lekin shu amalni tekshirib, "
+          "kerak bo'lsa qaytadan bajaring.\n")
+    clear_status()
+
+
 def load_meta() -> dict:
     with open(META_PATH, "r") as f:
         return json.load(f)
 
 
 def save_meta(meta: dict) -> None:
-    with open(META_PATH, "w") as f:
-        json.dump(meta, f, indent=2)
+    atomic_write(META_PATH, json.dumps(meta, indent=2).encode())
 
 
 def load_accounts(dek: bytes) -> dict:
@@ -46,8 +80,7 @@ def load_accounts(dek: bytes) -> dict:
 def save_accounts(dek: bytes, accounts: dict) -> None:
     raw = json.dumps(accounts).encode()
     token = Fernet(dek).encrypt(raw)
-    with open(DATA_PATH, "wb") as f:
-        f.write(token)
+    atomic_write(DATA_PATH, token)
 
 
 def push_to_github() -> None:
@@ -94,6 +127,7 @@ def run_init():
     question = input("Tiklash savolini kiriting (masalan: Birinchi telefon raqamingiz?): ")
     answer = input("Tiklash javobini kiriting: ")
 
+    set_status("init")
     dek = Fernet.generate_key()
     salt_seed = os.urandom(16)
     salt_recovery = os.urandom(16)
@@ -107,6 +141,7 @@ def run_init():
     }
     save_meta(meta)
     save_accounts(dek, {})
+    clear_status()
     print("\nVault muvaffaqiyatli yaratildi.")
     print("MUHIM: Seed va tiklash javobini xavfsiz joyda saqlang, ular hech qayerda saqlanmaydi.")
     print("Eslatma: GitHub'ga yuborish uchun menyudan 'Push' bo'limini tanlang.\n")
@@ -142,8 +177,10 @@ def action_add(dek, accounts):
         print("Bu email allaqachon mavjud, 'Tahrirlash' bo'limidan foydalaning.")
         return
     password = input("Parol: ")
+    set_status(f"add: {mask_email(email)}")
     accounts[email] = password
     save_accounts(dek, accounts)
+    clear_status()
     print(f"'{email}' qo'shildi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
@@ -153,8 +190,10 @@ def action_edit(dek, accounts):
         print("Bunday email topilmadi.")
         return
     new_password = input("Yangi parol: ")
+    set_status(f"edit: {mask_email(email)}")
     accounts[email] = new_password
     save_accounts(dek, accounts)
+    clear_status()
     print(f"'{email}' uchun parol yangilandi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
@@ -167,8 +206,10 @@ def action_delete(dek, accounts):
     if confirm != "ha":
         print("Bekor qilindi.")
         return
+    set_status(f"delete: {mask_email(email)}")
     del accounts[email]
     save_accounts(dek, accounts)
+    clear_status()
     print(f"'{email}' o'chirildi. (GitHub'ga yuborish uchun 'Push' bo'limini tanlang)")
 
 
@@ -193,8 +234,7 @@ def export_full_list(accounts):
     if not accounts:
         print("Vault bo'sh, eksport qilinadigan narsa yo'q.\n")
         return None
-    with open(RESULT_PATH, "w") as f:
-        json.dump(accounts, f, indent=2, ensure_ascii=False)
+    atomic_write(RESULT_PATH, json.dumps(accounts, indent=2, ensure_ascii=False).encode())
     print(f"To'liq list (ochiq parollar bilan) '{RESULT_PATH}' fayliga yozildi.")
     print(f"OGOHLANTIRISH: bu fayl SHIFRLANMAGAN. {RESULT_TTL_SECONDS} soniyadan so'ng yoki "
           "dasturdan chiqishda avtomatik o'chiriladi.\n")
@@ -237,6 +277,7 @@ MENU = """
 def main():
     cleanup_timer = None
     try:
+        check_previous_status()
         if not os.path.exists(META_PATH):
             dek = run_init()
         else:
