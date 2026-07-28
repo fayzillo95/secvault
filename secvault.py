@@ -235,49 +235,52 @@ MENU = """
 
 
 def main():
-    if not os.path.exists(META_PATH):
-        dek = run_init()
-    else:
-        dek = unlock()
-
-    accounts = load_accounts(dek)
     cleanup_timer = None
-
-    while True:
-        print(MENU)
-        choice = input("Tanlov: ").strip()
-
-        if choice == "1":
-            show_list(accounts, "full")
-        elif choice == "2":
-            show_list(accounts, "emails")
-        elif choice == "3":
-            show_list(accounts, "masked")
-        elif choice == "4":
-            action_add(dek, accounts)
-        elif choice == "5":
-            action_edit(dek, accounts)
-        elif choice == "6":
-            action_delete(dek, accounts)
-        elif choice == "7":
-            sync_pull()
-            accounts = load_accounts(dek)
-        elif choice == "8":
-            push_to_github()
-        elif choice == "9":
-            if cleanup_timer is not None:
-                cleanup_timer.cancel()
-            cleanup_timer = export_full_list(accounts)
-        elif choice == "0":
-            if cleanup_timer is not None:
-                cleanup_timer.cancel()
-            if os.path.exists(RESULT_PATH):
-                os.remove(RESULT_PATH)
-                print("result.json o'chirildi.")
-            print("Xayr!")
-            break
+    try:
+        if not os.path.exists(META_PATH):
+            dek = run_init()
         else:
-            print("Noto'g'ri tanlov, qaytadan urinib ko'ring.\n")
+            dek = unlock()
+
+        accounts = load_accounts(dek)
+
+        while True:
+            print(MENU)
+            choice = input("Tanlov: ").strip()
+
+            if choice == "1":
+                show_list(accounts, "full")
+            elif choice == "2":
+                show_list(accounts, "emails")
+            elif choice == "3":
+                show_list(accounts, "masked")
+            elif choice == "4":
+                action_add(dek, accounts)
+            elif choice == "5":
+                action_edit(dek, accounts)
+            elif choice == "6":
+                action_delete(dek, accounts)
+            elif choice == "7":
+                sync_pull()
+                accounts = load_accounts(dek)
+            elif choice == "8":
+                push_to_github()
+            elif choice == "9":
+                if cleanup_timer is not None:
+                    cleanup_timer.cancel()
+                cleanup_timer = export_full_list(accounts)
+            elif choice == "0":
+                break
+            else:
+                print("Noto'g'ri tanlov, qaytadan urinib ko'ring.\n")
+    except KeyboardInterrupt:
+        print("\n\nBekor qilindi.")
+    finally:
+        if cleanup_timer is not None:
+            cleanup_timer.cancel()
+        if os.path.exists(RESULT_PATH):
+            os.remove(RESULT_PATH)
+        print("Xayr!")
 
 
 if __name__ == "__main__":
